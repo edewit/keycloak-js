@@ -295,14 +295,14 @@ For more information on the DPoP standard, see the https://datatracker.ietf.org/
 ====
 
 === Key Storage and Persistence
-DPoP key pairs are persisted in IndexedDB, scoped to the specific issuer and client ID combination. This means keys survive page reloads and browser restarts, ensuring token continuity across sessions. If IndexedDB is unavailable, the adapter falls back to in-memory storage (keys will not survive page reloads). On logout, stored keys are automatically cleared.
+DPoP key pairs are persisted in IndexedDB, scoped to the specific issuer and client ID combination. This means keys survive page reloads and browser restarts, ensuring token continuity across sessions. If IndexedDB is unavailable, the adapter falls back to in-memory storage (keys will not survive page reloads) unless `strictStorage` is enabled. On logout and `clearToken()`, stored keys are automatically cleared.
 
 === Initializing with DPoP
-Enabling DPoP requires passing a `useDPoP` configuration object to the `init` method. The quickest and most straightforward way to enable DPoP is:
+Enabling DPoP requires passing a `dpopConfig` object to the `init` method. The quickest and most straightforward way to enable DPoP is:
 [source,javascript,subs="attributes+"]
 ----
 await keycloak.init({
-    useDPoP: { 
+    dpopConfig: { 
         mode: 'auto'
     }
 });
@@ -330,17 +330,19 @@ Setting a preferred algorithm can be done by setting `alg` to one of the support
 [source,javascript,subs="attributes+"]
 ----
 await keycloak.init({
-    useDPoP: { 
+    dpopConfig: { 
         mode: 'auto',
         alg: 'EdDSA'
     }
 });
 ----
 
-=== Using `secureFetch` 
-The `secureFetch` function is simply a wrapper around the global `fetch` function that also handles the nonce management required by DPoP secured resource servers.
+Set `strictStorage: true` in `dpopConfig` to fail initialization when IndexedDB is unavailable instead of using the in-memory fallback.
 
-Migrating from making a HTTP request using `fetch` to `secureFetch` is as simple as:
+=== Using `fetch` 
+The adapter's `fetch` method is a wrapper around the global `fetch` function that also handles the nonce management required by DPoP secured resource servers.
+
+Migrating from making a HTTP request using the global `fetch` to the adapter's `fetch` is as simple as:
 [source,javascript,subs="attributes+"]
 ----
 // Before migration with basic fetch
@@ -351,8 +353,8 @@ const response = await fetch('/api/users', {
     }
 });
 
-// After migration with secureFetch
-const response = await keycloak.secureFetch('/api/users', {
+// After migration with keycloak.fetch
+const response = await keycloak.fetch('/api/users', {
     headers: {
         accept: 'application/json',
         authorization: `Bearer ${r"${keycloak.token}"}`
@@ -360,11 +362,11 @@ const response = await keycloak.secureFetch('/api/users', {
 });
 ----
 
-IMPORTANT: `secureFetch` requires you to set a `Bearer` Authorization header with the Keycloak-managed token. This is how it identifies which requests should be DPoP-protected — if the header is missing or does not match the adapter's token, the request is passed through to `fetch` unchanged with no DPoP proof attached.
+IMPORTANT: `keycloak.fetch` requires you to set a `Bearer` Authorization header with the Keycloak-managed token. This is how it identifies which requests should be DPoP-protected — if the header is missing or does not match the adapter's token, the request is passed through to the global `fetch` unchanged with no DPoP proof attached.
 
-When a matching `Bearer` Authorization header is found, `secureFetch` automatically replaces it with the `DPoP` scheme and attaches the required proof.
+When a matching `Bearer` Authorization header is found, `keycloak.fetch` automatically replaces it with the `DPoP` scheme and attaches the required proof.
 
-`secureFetch` handles nonce management internally. If a resource server responds with a `use_dpop_nonce` error, `secureFetch` will automatically retry the request once with the server-provided nonce. If the retry also fails, the error response is returned as-is. In all cases, `secureFetch` returns a standard `Response` object just like `fetch` would.
+`keycloak.fetch` handles nonce management internally. If a resource server responds with a `use_dpop_nonce` error, `keycloak.fetch` will automatically retry the request once with the server-provided nonce. If the retry also fails, the error response is returned as-is. In all cases, `keycloak.fetch` returns a standard `Response` object just like the global `fetch` would.
 
 
 [[_modern_browsers]]

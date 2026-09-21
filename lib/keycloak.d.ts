@@ -66,7 +66,7 @@ export interface OpenIdProviderMetadata {
   /** URL at the OP to which an RP can perform a redirect to request that the End-User be logged out at the OP. */
   end_session_endpoint?: string
   /** A JSON array containing a list of the JWS alg values (from the {@link https://www.iana.org/assignments/jose/jose.xhtml [IANA.JOSE.ALGS]} registry) supported by the authorization server for DPoP proof JWTs. */
-  dpop_signing_alg_values_supported?: string[]
+  dpop_signing_alg_values_supported?: string[];
 }
 
 export type KeycloakConfig = KeycloakServerConfig | GenericOidcConfig
@@ -234,10 +234,11 @@ export interface KeycloakInitOptions {
    */
   logoutMethod?: 'GET' | 'POST'
 
+
   /**
    * Enables DPoP token auth flows and session key generation.
    */
-  useDPoP?: DPoPConfig
+  dpopConfig?: DPoPConfig
 }
 
 export interface KeycloakLoginOptions {
@@ -405,6 +406,11 @@ export interface DPoPConfig {
   mode: 'auto' | 'strict'
   /** Defaults to ES256 (P-256 curve) */
   alg?: 'ES256' | 'ES384' | 'ES512' | 'EdDSA'
+  /**
+   * When true, initialization fails if IndexedDB is unavailable instead of
+   * falling back to in-memory key storage.
+   */
+  strictStorage?: boolean
 }
 
 /**
@@ -677,7 +683,7 @@ declare class Keycloak {
   * updating token fails. Invoking this results in Keycloak#onAuthLogout
   * callback listener being invoked.
   */
-  clearToken (): void
+  clearToken (): Promise<void>
 
   /**
   * Returns true if the token has the given realm role.
@@ -712,7 +718,7 @@ declare class Keycloak {
   * @example
   * ```typescript
   * // Call a DPoP-protected API endpoint
-  * const response = await keycloak.secureFetch('/api/users', {
+  * const response = await keycloak.fetch('https://api.example.com/user', {
   *   headers: {
   *     'Authorization': `Bearer ${keycloak.token}`
   *   }
@@ -720,11 +726,11 @@ declare class Keycloak {
   * const data = await response.json();
   * ```
   *
-  * @param url The resource to fetch: a URL, a string or a Request object, as with regular fetch
+  * @param url The resource URL to fetch
   * @param init Optional fetch init options (same as standard fetch)
   * @returns A promise that resolves to the fetch Response
   */
-  secureFetch (url: URL | RequestInfo, init?: RequestInit): Promise<Response>
+  fetch (url: URL | RequestInfo, init?: RequestInit): Promise<Response>
 }
 
 export default Keycloak
